@@ -1,0 +1,30 @@
+name: Keep Supabase alive
+
+on:
+  schedule:
+    # 每 3 天 UTC 00:00 執行 = 台灣時間早上 8:00
+    - cron: '0 0 */3 * *'
+  # 允許在 Actions 頁面手動觸發，方便測試
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping Supabase REST API
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          response=$(curl -sS -w "\n%{http_code}" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            "$SUPABASE_URL/rest/v1/members?select=id&limit=1")
+          status=$(echo "$response" | tail -n1)
+          echo "Supabase ping HTTP status: $status"
+          if [ "$status" != "200" ]; then
+            echo "::error::Supabase ping failed with HTTP $status"
+            exit 1
+          fi
+          echo "Supabase is alive and responding."
